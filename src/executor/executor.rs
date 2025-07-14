@@ -10,7 +10,7 @@ use snafu::{ResultExt, Snafu};
 use tracing::{debug, info};
 
 use crate::application::ApplicationConfig;
-use crate::config::config::Config;
+use crate::config::config::TaskRegistry;
 use crate::executor::DependencyGraph;
 use crate::tasks::{Task, TaskError, TaskTrait};
 
@@ -20,14 +20,14 @@ const DEFAULT_WORKER_THREADS: usize = 1;
 pub struct Executor {
     dispatcher: Dispatcher,
     app_config: Arc<ApplicationConfig>,
-    config: Arc<Config>,
+    config: Arc<TaskRegistry>,
     dependency_graph: Arc<DependencyGraph>,
 }
 
 impl Executor {
     /// Creates a new Executor with the specified configuration and dependency graph
     pub fn new(
-        config: Arc<Config>,
+        config: Arc<TaskRegistry>,
         dependency_graph: Arc<DependencyGraph>,
         app_config: Arc<ApplicationConfig>,
     ) -> Result<Self, ExecutorCreationError> {

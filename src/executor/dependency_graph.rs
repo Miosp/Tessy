@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use crate::config::config::Config;
+use crate::config::config::TaskRegistry;
 use crate::tasks::TaskTrait;
 
 // Stores the dependency graph of tasks in the executor module.
@@ -18,7 +18,7 @@ pub struct DependencyGraph {
 }
 
 impl DependencyGraph {
-    pub fn from_config(config: &Config, final_task: &String) -> Self {
+    pub fn from_config(config: &TaskRegistry, final_task: &String) -> Self {
         // First, collect all tasks that are needed to execute the final task
         let needed_tasks = Self::collect_needed_tasks(config, final_task);
 
@@ -51,7 +51,7 @@ impl DependencyGraph {
     }
 
     /// Recursively collect all tasks needed to execute the final task
-    fn collect_needed_tasks(config: &Config, final_task: &String) -> HashSet<String> {
+    fn collect_needed_tasks(config: &TaskRegistry, final_task: &String) -> HashSet<String> {
         let mut needed_tasks = HashSet::new();
         let mut visited = HashSet::new();
 
@@ -62,7 +62,7 @@ impl DependencyGraph {
 
     /// Recursively collect dependencies for a task
     fn collect_dependencies_recursive(
-        config: &Config,
+        config: &TaskRegistry,
         task_id: &String,
         needed_tasks: &mut HashSet<String>,
         visited: &mut HashSet<String>,

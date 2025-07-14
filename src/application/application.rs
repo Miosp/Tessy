@@ -5,8 +5,8 @@ use snafu::prelude::*;
 use tracing::debug;
 
 use crate::application::ApplicationConfig;
-use crate::config::config::Config;
-use crate::config::config::ConfigCreationError;
+use crate::config::config::TaskRegistry;
+use crate::config::config::TaskRegistryCreationError;
 use crate::executor::DependencyGraph;
 use crate::executor::ExecutionError;
 use crate::executor::Executor;
@@ -17,7 +17,7 @@ pub struct Application;
 impl Application {
     pub async fn run(app_config: impl Into<ApplicationConfig>) -> Result<(), ApplicationError> {
         let app_config: ApplicationConfig = app_config.into();
-        let config = Config::read().await.context(ConfigSnafu)?;
+        let config = TaskRegistry::read().await.context(TaskRegistrySnafu)?;
         debug!("Loaded config: {:?}", config);
 
         let dependency_graph = DependencyGraph::from_config(&config, &app_config.target);
@@ -39,7 +39,7 @@ impl Application {
 #[derive(Debug, Snafu)]
 pub enum ApplicationError {
     #[snafu(display("Critical failure encountered during configuration stage"))]
-    ConfigError { source: ConfigCreationError },
+    TaskRegistryError { source: TaskRegistryCreationError },
     #[snafu(display("Critical failure encountered during executor creation"))]
     ExecutorCreationError { source: ExecutorCreationError },
     #[snafu(display("Critical failure encountered during application execution"))]
