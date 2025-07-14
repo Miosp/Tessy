@@ -8,6 +8,8 @@ I wanted to make something between a task runner (`make` or `just`) and a build 
 I always felt like `make` and `just` were too simple, while `gradle` was a bit complex when needing to do simple tasks,
 while also being slow.
 
+For now the development will be rapid and will happen on the `master` branch. This will change in the future, when the project will be more stable.
+
 ## Features I aim for
 - Dependency-based task execution
 - File change detection, so only tasks with changed dependencies are executed
@@ -15,3 +17,4 @@ while also being slow.
 - Wrapper support, so you do not have to install Tessy globally to use it
 - Easy installer
 - Cross-platform support
+- HTML-based build visualization
