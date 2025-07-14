@@ -8,6 +8,7 @@ pub trait TaskTrait {
     fn from_task_yaml(task_name: &str, task_data: &LinkedHashMap<Yaml, Yaml>) -> Option<Self>
     where
         Self: Sized;
+    // Runs the task and returns its id on success
     async fn run(&self) -> Result<String, TaskError>;
     fn id(&self) -> String;
     fn dependencies(&self) -> &Vec<String>;

@@ -5,13 +5,12 @@ use snafu::Snafu;
 use std::borrow::Cow;
 use tracing::{debug, info};
 
-use super::{TaskError, TaskTrait};
+use super::{BaseTask, TaskError, TaskTrait};
 
 #[derive(Debug, Clone)]
 pub struct ExecuteTask {
-    task_name: String,
+    base_task: BaseTask,
     command: String,
-    dependencies: Vec<String>,
 }
 
 impl TaskTrait for ExecuteTask {
@@ -23,25 +22,13 @@ impl TaskTrait for ExecuteTask {
             .as_str()?
             .to_string();
 
-        let dependencies = task_data
-            .get(&Yaml::Value(Scalar::String(Cow::Borrowed("dependsOn"))))
-            .and_then(|v| v.as_sequence())
-            .map(|seq| {
-                seq.iter()
-                    .filter_map(|item| item.as_str().map(|s| s.to_string()))
-                    .collect()
-            })
-            .unwrap_or_default();
+        let base_task = BaseTask::from_task_yaml(task_name, task_data)?;
 
-        Some(ExecuteTask {
-            task_name: task_name.to_string(),
-            command,
-            dependencies,
-        })
+        Some(ExecuteTask { base_task, command })
     }
 
     async fn run(&self) -> Result<String, TaskError> {
-        info!("Running task '{}'", self.task_name);
+        info!("Running task '{}'", self.id());
 
         let output = Command::new("cmd")
             .args(&["/C", &self.command])
@@ -50,19 +37,19 @@ impl TaskTrait for ExecuteTask {
             .map_err(|_| TaskError::ExecutionError {
                 source: ExecuteTaskError::ExecutionError {
                     command: self.command.clone(),
-                    task_name: self.task_name.clone(),
+                    task_name: self.id(),
                 },
             })?;
 
         match output.status.success() {
             true => {
-                info!("Task '{}' ended execution", self.task_name);
-                Ok(self.task_name.clone())
+                info!("Task '{}' ended execution", self.id());
+                Ok(self.id())
             }
             false => Err(TaskError::ExecutionError {
                 source: ExecuteTaskError::UnsuccessfulExecution {
                     command: self.command.clone(),
-                    task_name: self.task_name.clone(),
+                    task_name: self.id(),
                     status: output.status.code().unwrap_or(-1),
                 },
             }),
@@ -70,11 +57,11 @@ impl TaskTrait for ExecuteTask {
     }
 
     fn id(&self) -> String {
-        self.task_name.clone()
+        self.base_task.id()
     }
 
     fn dependencies(&self) -> &Vec<String> {
-        &self.dependencies
+        self.base_task.dependencies()
     }
 }
 
