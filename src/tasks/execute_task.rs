@@ -30,8 +30,10 @@ impl TaskTrait for ExecuteTask {
     async fn run(&self) -> Result<String, TaskError> {
         info!("Running task '{}'", self.id());
 
-        let output = Command::new("cmd")
-            .args(&["/C", &self.command])
+        let (command, args) = self.full_command();
+
+        let output = Command::new(command)
+            .args(args)
             .output()
             .await
             .map_err(|_| TaskError::ExecutionError {
@@ -62,6 +64,23 @@ impl TaskTrait for ExecuteTask {
 
     fn dependencies(&self) -> &Vec<String> {
         self.base_task.dependencies()
+    }
+}
+
+impl ExecuteTask {
+    // Returns the full command as a tuple of the command string and its arguments
+    // This should be os-specific
+    fn full_command(&self) -> (&'static str, Vec<&str>) {
+        #[cfg(target_family = "windows")]
+        {
+            let args = vec!["/C", &self.command];
+            ("cmd", args)
+        }
+        #[cfg(target_family = "unix")]
+        {
+            let args = vec!["-c", &self.command];
+            ("sh", args)
+        }
     }
 }
 
