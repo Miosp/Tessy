@@ -1255,6 +1255,7 @@ dependencies = [
  "futures",
  "futures-channel",
  "hashlink",
+ "ordered-float",
  "rstest",
  "saphyr",
  "snafu",

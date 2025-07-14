@@ -18,3 +18,4 @@ clap = { version = "4.5.41", features = ["derive"] }
 [dev-dependencies]
 rstest = "0.25.0"
 tempfile = "3.20.0"
+ordered-float = "5.0.0"
