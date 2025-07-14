@@ -1,0 +1,20 @@
+[package]
+name = "tessy"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+saphyr = "0.0.6"
+derive_more = { version = "2.0.1", features = ["full"] }
+snafu = "0.8.6"
+hashlink = "0.10.0"
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
+compio = { version = "0.15.0", features = ["macros", "process", "dispatcher"] }
+futures = "0.3.31"
+futures-channel = "0.3.31"
+clap = { version = "4.5.41", features = ["derive"] }
+
+[dev-dependencies]
+rstest = "0.25.0"
+tempfile = "3.20.0"
