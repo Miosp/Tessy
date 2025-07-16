@@ -112,6 +112,7 @@ impl ExecuteTask {
     /// Spawns a task to handle stdout stream
     fn spawn_stdout_handler(stdout: compio::process::ChildStdout, task_id: String) {
         let stream = AsyncStream::new(stdout);
+        //TODO - return the handle to the spawned task and ensure proper shutdown
         spawn(async move {
             let reader = BufReader::new(stream);
             let mut lines = reader.lines();
@@ -135,6 +136,7 @@ impl ExecuteTask {
     /// Spawns a task to handle stderr stream
     fn spawn_stderr_handler(stderr: compio::process::ChildStderr, task_id: String) {
         let stream = AsyncStream::new(stderr);
+        //TODO - return the handle to the spawned task and ensure proper shutdown
         spawn(async move {
             let reader = BufReader::new(stream);
             let mut lines = reader.lines();
