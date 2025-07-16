@@ -1,9 +1,9 @@
 use compio::{io::compat::AsyncStream, process::Command, runtime::spawn};
-use futures::AsyncBufReadExt;
+use futures::{AsyncBufReadExt, StreamExt, io::BufReader};
 use hashlink::LinkedHashMap;
 use saphyr::{Scalar, Yaml};
 use snafu::{ResultExt, Snafu};
-use std::borrow::Cow;
+use std::{borrow::Cow, process::Stdio};
 use tracing::{debug, info};
 
 use super::{BaseTask, TaskError, TaskTrait};
@@ -104,8 +104,8 @@ impl ExecuteTask {
         let (command, args) = self.full_command();
         let mut cmd = Command::new(command);
         cmd.args(args);
-        let _ = cmd.stdout(std::process::Stdio::piped());
-        let _ = cmd.stderr(std::process::Stdio::piped());
+        let _ = cmd.stdout(Stdio::piped());
+        let _ = cmd.stderr(Stdio::piped());
         cmd
     }
 
@@ -113,8 +113,7 @@ impl ExecuteTask {
     fn spawn_stdout_handler(stdout: compio::process::ChildStdout, task_id: String) {
         let stream = AsyncStream::new(stdout);
         spawn(async move {
-            use futures::stream::StreamExt;
-            let reader = futures::io::BufReader::new(stream);
+            let reader = BufReader::new(stream);
             let mut lines = reader.lines();
 
             while let Some(line_result) = lines.next().await {
@@ -126,7 +125,6 @@ impl ExecuteTask {
                     }
                     Err(e) => {
                         debug!("Error reading stdout for task '{}': {}", task_id, e);
-                        continue;
                     }
                 }
             }
@@ -138,8 +136,7 @@ impl ExecuteTask {
     fn spawn_stderr_handler(stderr: compio::process::ChildStderr, task_id: String) {
         let stream = AsyncStream::new(stderr);
         spawn(async move {
-            use futures::stream::StreamExt;
-            let reader = futures::io::BufReader::new(stream);
+            let reader = BufReader::new(stream);
             let mut lines = reader.lines();
 
             while let Some(line_result) = lines.next().await {
@@ -151,7 +148,6 @@ impl ExecuteTask {
                     }
                     Err(e) => {
                         debug!("Error reading stderr for task '{}': {}", task_id, e);
-                        continue;
                     }
                 }
             }
