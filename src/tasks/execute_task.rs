@@ -126,7 +126,7 @@ impl ExecuteTask {
                     }
                     Err(e) => {
                         debug!("Error reading stdout for task '{}': {}", task_id, e);
-                        break;
+                        continue;
                     }
                 }
             }
@@ -151,7 +151,7 @@ impl ExecuteTask {
                     }
                     Err(e) => {
                         debug!("Error reading stderr for task '{}': {}", task_id, e);
-                        break;
+                        continue;
                     }
                 }
             }
@@ -162,21 +162,13 @@ impl ExecuteTask {
 
 #[derive(Debug, Snafu)]
 pub enum ExecuteTaskError {
-    #[snafu(display(
-        "Failed to spawn command '{}' for task '{}'",
-        command,
-        task_name
-    ))]
+    #[snafu(display("Failed to spawn command '{}' for task '{}'", command, task_name))]
     SpawnError {
         command: String,
         task_name: String,
         source: std::io::Error,
     },
-    #[snafu(display(
-        "Failed to wait for command '{}' for task '{}'",
-        command,
-        task_name
-    ))]
+    #[snafu(display("Failed to wait for command '{}' for task '{}'", command, task_name))]
     WaitError {
         command: String,
         task_name: String,
