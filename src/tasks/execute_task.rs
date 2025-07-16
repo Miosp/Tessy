@@ -1,8 +1,9 @@
-use compio::process::Command;
+use compio::{io::compat::AsyncStream, process::Command, runtime::spawn};
+use futures::{AsyncBufReadExt, StreamExt, io::BufReader};
 use hashlink::LinkedHashMap;
 use saphyr::{Scalar, Yaml};
-use snafu::Snafu;
-use std::borrow::Cow;
+use snafu::{ResultExt, Snafu};
+use std::{borrow::Cow, process::Stdio};
 use tracing::{debug, info};
 
 use super::{BaseTask, TaskError, TaskTrait};
@@ -30,31 +31,46 @@ impl TaskTrait for ExecuteTask {
     async fn run(&self) -> Result<String, TaskError> {
         info!("Running task '{}'", self.id());
 
-        let (command, args) = self.full_command();
+        let mut cmd = self.create_command();
 
-        let output = Command::new(command)
-            .args(args)
-            .output()
+        let mut handle = cmd
+            .spawn()
+            .context(SpawnSnafu {
+                command: self.command.clone(),
+                task_name: self.id(),
+            })
+            .map_err(|err| TaskError::ExecutionError { source: err })?;
+
+        // Handle stdout
+        if let Some(stdout) = handle.stdout.take() {
+            Self::spawn_stdout_handler(stdout, self.id());
+        }
+
+        // Handle stderr
+        if let Some(stderr) = handle.stderr.take() {
+            Self::spawn_stderr_handler(stderr, self.id());
+        }
+
+        let status = handle
+            .wait()
             .await
-            .map_err(|_| TaskError::ExecutionError {
-                source: ExecuteTaskError::ExecutionError {
-                    command: self.command.clone(),
-                    task_name: self.id(),
-                },
-            })?;
+            .context(WaitSnafu {
+                command: self.command.clone(),
+                task_name: self.id(),
+            })
+            .map_err(|err| TaskError::ExecutionError { source: err })?;
 
-        match output.status.success() {
-            true => {
-                info!("Task '{}' ended execution", self.id());
-                Ok(self.id())
-            }
-            false => Err(TaskError::ExecutionError {
+        if status.success() {
+            info!("Task '{}' completed successfully", self.id());
+            Ok(self.id())
+        } else {
+            Err(TaskError::ExecutionError {
                 source: ExecuteTaskError::UnsuccessfulExecution {
                     command: self.command.clone(),
                     task_name: self.id(),
-                    status: output.status.code().unwrap_or(-1),
+                    status: status.code().unwrap_or(-1),
                 },
-            }),
+            })
         }
     }
 
@@ -68,8 +84,8 @@ impl TaskTrait for ExecuteTask {
 }
 
 impl ExecuteTask {
-    // Returns the full command as a tuple of the command string and its arguments
-    // This should be os-specific
+    /// Returns the full command as a tuple of the command string and its arguments.
+    /// This should be os-specific.
     fn full_command(&self) -> (&'static str, Vec<&str>) {
         #[cfg(target_family = "windows")]
         {
@@ -82,14 +98,82 @@ impl ExecuteTask {
             ("sh", args)
         }
     }
+
+    /// Creates and configures the command with proper stdio settings
+    fn create_command(&self) -> Command {
+        let (command, args) = self.full_command();
+        let mut cmd = Command::new(command);
+        cmd.args(args);
+        let _ = cmd.stdout(Stdio::piped());
+        let _ = cmd.stderr(Stdio::piped());
+        cmd
+    }
+
+    /// Spawns a task to handle stdout stream
+    fn spawn_stdout_handler(stdout: compio::process::ChildStdout, task_id: String) {
+        let stream = AsyncStream::new(stdout);
+        //TODO - return the handle to the spawned task and ensure proper shutdown
+        spawn(async move {
+            let reader = BufReader::new(stream);
+            let mut lines = reader.lines();
+
+            while let Some(line_result) = lines.next().await {
+                match line_result {
+                    Ok(line) => {
+                        if !line.trim().is_empty() {
+                            info!("[{}]: {}", task_id, line.trim());
+                        }
+                    }
+                    Err(e) => {
+                        debug!("Error reading stdout for task '{}': {}", task_id, e);
+                    }
+                }
+            }
+        })
+        .detach();
+    }
+
+    /// Spawns a task to handle stderr stream
+    fn spawn_stderr_handler(stderr: compio::process::ChildStderr, task_id: String) {
+        let stream = AsyncStream::new(stderr);
+        //TODO - return the handle to the spawned task and ensure proper shutdown
+        spawn(async move {
+            let reader = BufReader::new(stream);
+            let mut lines = reader.lines();
+
+            while let Some(line_result) = lines.next().await {
+                match line_result {
+                    Ok(line) => {
+                        if !line.trim().is_empty() {
+                            info!("[{} stderr]: {}", task_id, line.trim());
+                        }
+                    }
+                    Err(e) => {
+                        debug!("Error reading stderr for task '{}': {}", task_id, e);
+                    }
+                }
+            }
+        })
+        .detach();
+    }
 }
 
 #[derive(Debug, Snafu)]
 pub enum ExecuteTaskError {
-    #[snafu(display("Failed to execute command '{}' for task '{}'", command, task_name))]
-    ExecutionError { command: String, task_name: String },
+    #[snafu(display("Failed to spawn command '{}' for task '{}'", command, task_name))]
+    SpawnError {
+        command: String,
+        task_name: String,
+        source: std::io::Error,
+    },
+    #[snafu(display("Failed to wait for command '{}' for task '{}'", command, task_name))]
+    WaitError {
+        command: String,
+        task_name: String,
+        source: std::io::Error,
+    },
     #[snafu(display(
-        "Unsuccessful execution of command '{}' for task '{}'. Status: {}",
+        "Command '{}' for task '{}' failed with exit code {}",
         command,
         task_name,
         status

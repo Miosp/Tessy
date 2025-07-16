@@ -274,6 +274,7 @@ dependencies = [
  "compio-buf",
  "futures-util",
  "paste",
+ "pin-project-lite",
 ]
 
 [[package]]
