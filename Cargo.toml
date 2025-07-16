@@ -10,7 +10,12 @@ snafu = "0.8.6"
 hashlink = "0.10.0"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
-compio = { version = "0.15.0", features = ["macros", "process", "dispatcher"] }
+compio = { version = "0.15.0", features = [
+    "macros",
+    "process",
+    "dispatcher",
+    "io-compat",
+] }
 futures = "0.3.31"
 futures-channel = "0.3.31"
 clap = { version = "4.5.41", features = ["derive"] }
