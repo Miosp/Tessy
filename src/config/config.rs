@@ -100,7 +100,7 @@ impl TaskRegistry {
 
 #[derive(Debug, Snafu)]
 pub enum TaskRegistryCreationError {
-    #[snafu(display("Failed to read the config file"))]
+    #[snafu(display("Failed to read the config file: {}", file_path))]
     ReadError {
         file_path: String,
         source: std::io::Error,
