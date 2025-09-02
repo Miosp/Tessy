@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+use tracing::debug;
+
 use crate::config::config::TaskRegistry;
 use crate::tasks::TaskTrait;
 
@@ -21,6 +23,7 @@ impl DependencyGraph {
     pub fn from_config(config: &TaskRegistry, final_task: &String) -> Self {
         // First, collect all tasks that are needed to execute the final task
         let needed_tasks = Self::collect_needed_tasks(config, final_task);
+        debug!("Needed tasks for {}: {:?}", final_task, needed_tasks);
 
         let mut task_parents = HashMap::new();
 
@@ -47,6 +50,7 @@ impl DependencyGraph {
             }
         }
 
+        debug!("Constructed dependency graph: {:?}", task_parents);
         DependencyGraph { task_parents }
     }
 

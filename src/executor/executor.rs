@@ -63,7 +63,7 @@ impl Executor {
         let (task_sender, mut task_receiver) = mpsc::unbounded::<Result<String, TaskError>>();
 
         // Dispatch all tasks that have no dependencies
-        self.dispatch_initial_tasks(&task_sender, &dependency_counts)
+        self.dispatch_initial_tasks(&task_sender, &self.dependency_graph)
             .await?;
 
         // Process task completion results until target is reached
@@ -75,14 +75,14 @@ impl Executor {
     async fn dispatch_initial_tasks(
         &self,
         task_sender: &UnboundedSender<Result<String, TaskError>>,
-        dependency_counts: &HashMap<String, u32>,
+        dependency_graph: &DependencyGraph,
     ) -> Result<(), ExecutionError> {
         debug!("Getting initial tasks with no dependencies");
 
-        let ready_tasks: Vec<Task> = dependency_counts
+        let ready_tasks: Vec<Task> = dependency_graph.task_parents
             .iter()
-            .filter_map(|(task_id, &count)| {
-                if count == 0 {
+            .filter_map(|(task_id, parents)| {
+                if parents.is_empty() {
                     self.config.tasks.get(task_id).cloned()
                 } else {
                     None
