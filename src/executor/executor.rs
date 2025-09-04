@@ -12,6 +12,7 @@ use tracing::{debug, info};
 use crate::application::ApplicationConfig;
 use crate::config::config::TaskRegistry;
 use crate::executor::DependencyGraph;
+use crate::file_dependencies::DependencyTracker;
 use crate::tasks::{Task, TaskError, TaskTrait};
 
 /// Default number of worker threads when unable to determine system parallelism
@@ -22,6 +23,7 @@ pub struct Executor {
     app_config: Arc<ApplicationConfig>,
     config: Arc<TaskRegistry>,
     dependency_graph: Arc<DependencyGraph>,
+    saved_dependencies: Arc<DependencyTracker>,
 }
 
 impl Executor {
@@ -30,6 +32,7 @@ impl Executor {
         config: Arc<TaskRegistry>,
         dependency_graph: Arc<DependencyGraph>,
         app_config: Arc<ApplicationConfig>,
+        saved_dependencies: Arc<DependencyTracker>,
     ) -> Result<Self, ExecutorCreationError> {
         let workers_num = Self::determine_worker_count();
         debug!("Using {} worker threads for task execution", workers_num);
@@ -44,6 +47,7 @@ impl Executor {
             config,
             dependency_graph,
             app_config,
+            saved_dependencies,
         })
     }
 
@@ -58,7 +62,7 @@ impl Executor {
     }
 
     /// Main execution method that coordinates task execution based on dependencies
-    pub async fn execute(&self) -> Result<(), ExecutionError> {
+    pub async fn execute(&self) -> Result<Vec<String>, ExecutionError> {
         let mut dependency_counts = self.initialize_dependency_counts();
         let (task_sender, mut task_receiver) = mpsc::unbounded::<Result<String, TaskError>>();
 
@@ -79,11 +83,19 @@ impl Executor {
     ) -> Result<(), ExecutionError> {
         debug!("Getting initial tasks with no dependencies");
 
+<<<<<<< HEAD
         let ready_tasks: Vec<Task> = dependency_graph.task_parents
             .iter()
             .filter_map(|(task_id, parents)| {
                 if parents.is_empty() {
                     self.config.tasks.get(task_id).cloned()
+=======
+        let ready_tasks: Vec<Task> = dependency_graph
+            .get_task_parents_iter()
+            .filter_map(|(task_id, parents)| {
+                if parents.is_empty() {
+                    self.config.get_task_by_id(task_id).cloned()
+>>>>>>> 29e21ce (Initial working version)
                 } else {
                     None
                 }
@@ -105,13 +117,16 @@ impl Executor {
         task_receiver: &mut futures_channel::mpsc::UnboundedReceiver<Result<String, TaskError>>,
         dependency_counts: &mut HashMap<String, u32>,
         task_sender: &UnboundedSender<Result<String, TaskError>>,
-    ) -> Result<(), ExecutionError> {
+    ) -> Result<Vec<String>, ExecutionError> {
         debug!("Starting result processing loop");
+
+        let mut task_ids: Vec<String> = Vec::new();
 
         while let Some(result) = task_receiver.next().await {
             match result {
                 Ok(task_id) => {
                     debug!("Acknowledged task '{}' completion", task_id);
+                    task_ids.push(task_id.clone());
 
                     // Check if we've reached the target task
                     if task_id == self.app_config.target {
@@ -119,7 +134,7 @@ impl Executor {
                             "Reached target task '{}'. Execution completed successfully.",
                             task_id
                         );
-                        return Ok(());
+                        return Ok(task_ids);
                     }
 
                     // Handle dependency management for completed task
@@ -145,8 +160,7 @@ impl Executor {
     ) -> Result<(), ExecutionError> {
         let parent_tasks = self
             .dependency_graph
-            .task_parents
-            .get(completed_task_id)
+            .get_parent_by_id(completed_task_id)
             .cloned()
             .unwrap_or_default();
 
@@ -160,7 +174,7 @@ impl Executor {
 
                 // If all dependencies are satisfied, dispatch the parent task
                 if *count == 0 {
-                    if let Some(task) = self.config.tasks.get(&parent_id) {
+                    if let Some(task) = self.config.get_task_by_id(&parent_id) {
                         debug!(
                             "All dependencies satisfied for task '{}', dispatching",
                             parent_id
@@ -179,10 +193,10 @@ impl Executor {
     fn initialize_dependency_counts(&self) -> HashMap<String, u32> {
         let mut counts = HashMap::new();
 
-        for (task_id, task) in &self.config.tasks {
+        for task in self.config.get_tasks_iter() {
             let dependency_count = task.dependencies().len() as u32;
-            counts.insert(task_id.clone(), dependency_count);
-            debug!("Task '{}' has {} dependencies", task_id, dependency_count);
+            counts.insert(task.id(), dependency_count);
+            debug!("Task '{}' has {} dependencies", task.id(), dependency_count);
         }
 
         debug!("Initialized dependency counts for {} tasks", counts.len());
@@ -196,6 +210,19 @@ impl Executor {
         task: Task,
     ) -> Result<(), ExecutionError> {
         let task_id = task.id().clone();
+
+        if self.saved_dependencies.is_task_up_to_date(&task) {
+            info!("Task '{}' is up to date, skipping execution", task_id);
+            let task_id_for_err = task_id.clone();
+            if let Err(send_err) = task_sender.unbounded_send(Ok(task_id)) {
+                debug!(
+                    "Failed to send task result for '{}': {}",
+                    task_id_for_err, send_err
+                );
+            }
+            return Ok(());
+        }
+        debug!("Task '{}' is not up to date, executing", task_id);
 
         let receiver = self
             .dispatcher

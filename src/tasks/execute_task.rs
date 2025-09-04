@@ -29,8 +29,6 @@ impl TaskTrait for ExecuteTask {
     }
 
     async fn run(&self) -> Result<String, TaskError> {
-        info!("Running task '{}'", self.id());
-
         let mut cmd = self.create_command();
 
         let mut handle = cmd

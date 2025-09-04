@@ -5,24 +5,31 @@ use snafu::prelude::*;
 use std::{borrow::Cow, collections::HashMap, io::Cursor, path::Path};
 use tracing::debug;
 
-use crate::tasks::{Task, TaskTrait};
+use crate::{
+    ext::BestEffortPathExt,
+    tasks::{Task, TaskTrait},
+};
 
-pub static TASK_FILE_NAME: &str = "tasks.yaml";
+const TASK_FILE_NAME: &str = "tasks.yaml";
+
+fn get_task_file_name() -> &'static Path {
+    Path::new(TASK_FILE_NAME)
+}
 
 #[derive(Debug, Clone)]
 pub struct TaskRegistry {
-    pub tasks: HashMap<String, Task>,
+    tasks: HashMap<String, Task>,
 }
 
 impl TaskRegistry {
     pub async fn read() -> Result<Self, TaskRegistryCreationError> {
-        Self::from_path(Path::new(TASK_FILE_NAME)).await
+        Self::from_path(get_task_file_name()).await
     }
 
     pub async fn from_path(path: &Path) -> Result<Self, TaskRegistryCreationError> {
-        debug!("Opening config file: {}", path.display());
+        debug!("Opening config file: {}", path.best_effort_path_display());
         let file = File::open(&path).await.context(ReadSnafu {
-            file_path: path.display().to_string(),
+            file_path: path.best_effort_path_display(),
         })?;
         Self::from_file(file).await
     }
@@ -38,42 +45,23 @@ impl TaskRegistry {
             Ok(n) => debug!("Successfully read config file: {n} bytes"),
             _ => {
                 res.0.context(ReadSnafu {
-                    file_path: TASK_FILE_NAME.to_string(),
+                    file_path: get_task_file_name().best_effort_path_display(),
                 })?;
             }
         }
 
-        Self::from_string(&res.1)
+        res.1.as_str().try_into()
     }
 
-    pub fn from_string(contents: &str) -> Result<Self, TaskRegistryCreationError> {
-        let contents_vec = Yaml::load_from_str(&contents)
-            .map_err(|e| TaskRegistryCreationError::ParseError { source: e })?;
-        let contents = contents_vec
-            .get(0)
-            .ok_or(TaskRegistryCreationError::MalformedConfig)?;
-
-        let top_level = contents
-            .as_mapping()
-            .ok_or(TaskRegistryCreationError::TopLevelNotMap)?;
-
-        let tasks = Self::get_tasks(top_level)?
-            .into_iter()
-            .map(|task| (task.id(), task))
-            .try_fold(HashMap::new(), |mut acc, (id, task)| {
-                if acc.contains_key(&id) {
-                    // For now unreachable, as Saphyr automatically prevents duplicate keys
-                    Err(TaskRegistryCreationError::DuplicateTask { task_name: id })
-                } else {
-                    acc.insert(id, task);
-                    Ok(acc)
-                }
-            })?;
-
-        Ok(TaskRegistry { tasks })
+    pub fn get_task_by_id(&self, id: impl AsRef<str>) -> Option<&Task> {
+        self.tasks.get(id.as_ref())
     }
 
-    fn get_tasks(
+    pub fn get_tasks_iter(&self) -> impl Iterator<Item = &Task> {
+        self.tasks.values()
+    }
+
+    fn parse_tasks_from_yaml(
         top_level: &LinkedHashMap<Yaml, Yaml>,
     ) -> Result<Vec<Task>, TaskRegistryCreationError> {
         let tasks = top_level
@@ -95,6 +83,37 @@ impl TaskRegistry {
             .collect::<Vec<_>>();
 
         Ok(tasks)
+    }
+}
+
+impl TryFrom<&str> for TaskRegistry {
+    type Error = TaskRegistryCreationError;
+
+    fn try_from(contents: &str) -> Result<Self, Self::Error> {
+        let contents_vec = Yaml::load_from_str(contents)
+            .map_err(|e| TaskRegistryCreationError::ParseError { source: e })?;
+        let contents = contents_vec
+            .get(0)
+            .ok_or(TaskRegistryCreationError::MalformedConfig)?;
+
+        let top_level = contents
+            .as_mapping()
+            .ok_or(TaskRegistryCreationError::TopLevelNotMap)?;
+
+        let tasks = Self::parse_tasks_from_yaml(top_level)?
+            .into_iter()
+            .map(|task| (task.id(), task))
+            .try_fold(HashMap::new(), |mut acc, (id, task)| {
+                if acc.contains_key(&id) {
+                    // For now unreachable, as Saphyr automatically prevents duplicate keys
+                    Err(TaskRegistryCreationError::DuplicateTask { task_name: id })
+                } else {
+                    acc.insert(id, task);
+                    Ok(acc)
+                }
+            })?;
+
+        Ok(TaskRegistry { tasks })
     }
 }
 
@@ -134,7 +153,7 @@ mod tests {
     #[compio::test]
     async fn config_returns_error_on_invalid_yaml() {
         let invalid_yaml = "invalid: yaml: content: [unclosed";
-        let result = TaskRegistry::from_string(invalid_yaml);
+        let result: Result<TaskRegistry, _> = invalid_yaml.try_into();
         assert!(result.is_err());
         assert!(matches!(
             result,
@@ -145,7 +164,7 @@ mod tests {
     #[compio::test]
     async fn config_returns_error_on_empty_file() {
         let empty_content = "";
-        let result = TaskRegistry::from_string(empty_content);
+        let result: Result<TaskRegistry, _> = empty_content.try_into();
         assert!(result.is_err());
         assert!(matches!(
             result,
@@ -156,7 +175,7 @@ mod tests {
     #[compio::test]
     async fn config_returns_error_when_top_level_is_not_map() {
         let yaml_with_list_top_level = "- item1\n- item2";
-        let result = TaskRegistry::from_string(yaml_with_list_top_level);
+        let result: Result<TaskRegistry, _> = yaml_with_list_top_level.try_into();
         assert!(result.is_err());
         assert!(matches!(
             result,
@@ -167,7 +186,7 @@ mod tests {
     #[compio::test]
     async fn config_returns_error_when_top_level_is_scalar() {
         let yaml_with_scalar_top_level = "just a string";
-        let result = TaskRegistry::from_string(yaml_with_scalar_top_level);
+        let result: Result<TaskRegistry, _> = yaml_with_scalar_top_level.try_into();
         assert!(result.is_err());
         assert!(matches!(
             result,
@@ -178,7 +197,7 @@ mod tests {
     #[compio::test]
     async fn config_returns_error_when_tasks_is_not_map() {
         let yaml_with_invalid_tasks = "tasks:\n  - invalid_task_format";
-        let result = TaskRegistry::from_string(yaml_with_invalid_tasks);
+        let result: Result<TaskRegistry, _> = yaml_with_invalid_tasks.try_into();
         assert!(result.is_err());
         assert!(matches!(
             result,
@@ -189,7 +208,7 @@ mod tests {
     #[compio::test]
     async fn config_handles_empty_tasks_section() {
         let yaml_with_empty_tasks = "tasks: {}";
-        let result = TaskRegistry::from_string(yaml_with_empty_tasks);
+        let result: Result<TaskRegistry, _> = yaml_with_empty_tasks.try_into();
         assert!(result.is_ok());
         let config = result.unwrap();
         assert!(config.tasks.is_empty());
@@ -198,7 +217,7 @@ mod tests {
     #[compio::test]
     async fn config_handles_missing_tasks_section() {
         let yaml_without_tasks = "other_config: value";
-        let result = TaskRegistry::from_string(yaml_without_tasks);
+        let result: Result<TaskRegistry, _> = yaml_without_tasks.try_into();
         assert!(result.is_ok());
         let config = result.unwrap();
         assert!(config.tasks.is_empty());
@@ -213,7 +232,7 @@ tasks:
     command: "echo hello"
   "another_invalid": "string value instead of map"
 "#;
-        let result = TaskRegistry::from_string(yaml_with_mixed_entries);
+        let result: Result<TaskRegistry, _> = yaml_with_mixed_entries.try_into();
         assert!(result.is_ok());
         // Note: This test assumes valid_task would be parsed correctly by Task::from_task_yaml
         // The actual behavior depends on the Task implementation
@@ -228,7 +247,7 @@ tasks:
       - more: nesting
         even: deeper
 "#;
-        let result = TaskRegistry::from_string(yaml_with_complex_invalid);
+        let result: Result<TaskRegistry, _> = yaml_with_complex_invalid.try_into();
         // Should succeed but skip the invalid task entry
         assert!(result.is_ok());
     }
@@ -240,7 +259,7 @@ tasks:
   null_task: null
   empty_task: {}
 "#;
-        let result = TaskRegistry::from_string(yaml_with_nulls);
+        let result: Result<TaskRegistry, _> = yaml_with_nulls.try_into();
         assert!(result.is_ok());
         // Should skip null_task and handle empty_task
     }
@@ -250,7 +269,7 @@ tasks:
         let long_task_name = "a".repeat(1000);
         let yaml_with_long_name =
             format!("tasks:\n  {}:\n    command: \"echo test\"", long_task_name);
-        let result = TaskRegistry::from_string(&yaml_with_long_name);
+        let result: Result<TaskRegistry, _> = yaml_with_long_name.as_str().try_into();
         // Should handle long names gracefully
         assert!(result.is_ok());
     }
@@ -268,7 +287,7 @@ tasks:
   "task with spaces":
     command: "echo spaces"
 "#;
-        let result = TaskRegistry::from_string(yaml_with_special_chars);
+        let result: Result<TaskRegistry, _> = yaml_with_special_chars.try_into();
         assert!(result.is_ok());
     }
 
@@ -281,7 +300,7 @@ tasks:
   "🚀rocket":
     command: "echo emoji"
 "#;
-        let result = TaskRegistry::from_string(yaml_with_unicode);
+        let result: Result<TaskRegistry, _> = yaml_with_unicode.try_into();
         assert!(result.is_ok());
     }
 }

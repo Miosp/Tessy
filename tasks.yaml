@@ -2,6 +2,8 @@ tasks:
   # Task without inputs - will be rerun every time
   list_files:
     command: "dir"
+    inputs:
+      - "README.md"
 
   # Task with inputs - will only rerun if src/main.rs or Cargo.toml changes
   build:

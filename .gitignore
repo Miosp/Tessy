@@ -22,3 +22,6 @@ target
 
 # Ignore the following files and directories
 .errorviz-version
+
+# Own tessy files
+.tessy
