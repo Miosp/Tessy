@@ -81,6 +81,10 @@ impl TaskTrait for ExecuteTask {
     fn dependencies(&self) -> &Vec<String> {
         self.base_task.dependencies()
     }
+
+    fn inputs(&self) -> &Vec<String> {
+        self.base_task.inputs()
+    }
 }
 
 impl ExecuteTask {

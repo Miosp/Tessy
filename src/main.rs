@@ -10,6 +10,7 @@ mod application;
 mod cli;
 mod config;
 mod executor;
+mod filesystem;
 mod tasks;
 
 #[compio::main]
