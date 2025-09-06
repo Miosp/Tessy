@@ -20,7 +20,9 @@ pub struct Application;
 impl Application {
     pub async fn run(app_config: impl Into<RuntimeConfig>) -> Result<(), ApplicationError> {
         let app_config: RuntimeConfig = app_config.into();
-        let config = TaskRegistry::read(&app_config.root).await.context(TaskRegistrySnafu)?;
+        let config = TaskRegistry::read(&app_config.root)
+            .await
+            .context(TaskRegistrySnafu)?;
         debug!("Loaded config: {:?}", config);
 
         let arc_app_config = Arc::new(app_config);

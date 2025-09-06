@@ -203,7 +203,11 @@ impl Executor {
     ) -> Result<(), ExecutionError> {
         let task_id = task.id().clone();
 
-        if self.saved_dependencies.is_task_up_to_date(&task, &self.app_config.root).await {
+        if self
+            .saved_dependencies
+            .is_task_up_to_date(&task, &self.app_config.root)
+            .await
+        {
             info!("Task '{}' is up to date, skipping execution", task_id);
             let task_id_for_err = task_id.clone();
             if let Err(send_err) = task_sender.unbounded_send(Ok(task_id)) {

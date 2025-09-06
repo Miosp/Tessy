@@ -2,7 +2,12 @@ use compio::{fs::File, io::AsyncReadExt, io::BufReader};
 use hashlink::LinkedHashMap;
 use saphyr::{LoadableYamlNode, Scalar, Yaml};
 use snafu::prelude::*;
-use std::{borrow::Cow, collections::HashMap, io::Cursor, path::{Path, PathBuf}};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    io::Cursor,
+    path::{Path, PathBuf},
+};
 use tracing::debug;
 
 use crate::{
