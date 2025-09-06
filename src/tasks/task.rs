@@ -12,6 +12,7 @@ pub trait TaskTrait {
     async fn run(&self) -> Result<String, TaskError>;
     fn id(&self) -> String;
     fn dependencies(&self) -> &Vec<String>;
+    fn inputs(&self) -> &Vec<String>;
 }
 
 #[derive(Debug, Clone)]
@@ -54,6 +55,12 @@ impl TaskTrait for Task {
     fn dependencies(&self) -> &Vec<String> {
         match self {
             Task::Execute(task) => task.dependencies(),
+        }
+    }
+
+    fn inputs(&self) -> &Vec<String> {
+        match self {
+            Task::Execute(task) => task.inputs(),
         }
     }
 }

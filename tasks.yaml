@@ -1,0 +1,30 @@
+tasks:
+  # Task without inputs - will be rerun every time
+  # list_files:
+  #   command: "dir"
+  #   inputs:
+  #     - "."
+
+  # Task with inputs - will only rerun if src/main.rs or Cargo.toml changes
+  build:
+    command: "cargo build"
+    inputs:
+      - "src/main.rs"
+      - "Cargo.toml"
+      - "src/"
+
+  # Task with dependencies and inputs
+  test:
+    command: "cargo test"
+    dependsOn:
+      - "build"
+    inputs:
+      - "src/"
+      - "Cargo.toml"
+
+  # Task with inputs for specific files and folders
+  format_check:
+    command: "cargo fmt --check"
+    inputs:
+      - "src/"
+      - ".rustfmt.toml"

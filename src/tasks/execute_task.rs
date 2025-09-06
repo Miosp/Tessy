@@ -29,8 +29,6 @@ impl TaskTrait for ExecuteTask {
     }
 
     async fn run(&self) -> Result<String, TaskError> {
-        info!("Running task '{}'", self.id());
-
         let mut cmd = self.create_command();
 
         let mut handle = cmd
@@ -80,6 +78,10 @@ impl TaskTrait for ExecuteTask {
 
     fn dependencies(&self) -> &Vec<String> {
         self.base_task.dependencies()
+    }
+
+    fn inputs(&self) -> &Vec<String> {
+        self.base_task.inputs()
     }
 }
 
