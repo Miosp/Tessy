@@ -122,19 +122,17 @@ mod tests {
     impl AsyncFrom<String> for StringWrapper {
         type Error = ();
 
-        fn async_from(value: String) -> impl Future<Output = Result<Self, Self::Error>> + Send {
-            async move { Ok(StringWrapper(value)) }
+        async fn async_from(value: String) -> Result<Self, Self::Error> {
+            Ok(StringWrapper(value))
         }
     }
 
     impl AsyncTryFrom<String> for NumberWrapper {
         type Error = std::num::ParseIntError;
 
-        fn async_try_from(value: String) -> impl Future<Output = Result<Self, Self::Error>> + Send {
-            async move {
-                let number = value.parse::<i32>()?;
-                Ok(NumberWrapper(number))
-            }
+        async fn async_try_from(value: String) -> Result<Self, Self::Error> {
+            let number = value.parse::<i32>()?;
+            Ok(NumberWrapper(number))
         }
     }
 
