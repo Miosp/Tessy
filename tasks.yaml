@@ -4,6 +4,7 @@ tasks:
     command: "dir"
     inputs:
       - "README.md"
+      - "src/"
 
   # Task with inputs - will only rerun if src/main.rs or Cargo.toml changes
   build:

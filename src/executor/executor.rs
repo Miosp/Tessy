@@ -83,19 +83,11 @@ impl Executor {
     ) -> Result<(), ExecutionError> {
         debug!("Getting initial tasks with no dependencies");
 
-<<<<<<< HEAD
-        let ready_tasks: Vec<Task> = dependency_graph.task_parents
-            .iter()
-            .filter_map(|(task_id, parents)| {
-                if parents.is_empty() {
-                    self.config.tasks.get(task_id).cloned()
-=======
         let ready_tasks: Vec<Task> = dependency_graph
             .get_task_parents_iter()
             .filter_map(|(task_id, parents)| {
                 if parents.is_empty() {
                     self.config.get_task_by_id(task_id).cloned()
->>>>>>> 29e21ce (Initial working version)
                 } else {
                     None
                 }
@@ -211,7 +203,7 @@ impl Executor {
     ) -> Result<(), ExecutionError> {
         let task_id = task.id().clone();
 
-        if self.saved_dependencies.is_task_up_to_date(&task) {
+        if self.saved_dependencies.is_task_up_to_date(&task).await {
             info!("Task '{}' is up to date, skipping execution", task_id);
             let task_id_for_err = task_id.clone();
             if let Err(send_err) = task_sender.unbounded_send(Ok(task_id)) {

@@ -3,8 +3,8 @@ use std::sync::Arc;
 use snafu::Snafu;
 use snafu::prelude::*;
 use tracing::debug;
+use tracing::error;
 use tracing::info;
-use tracing::warn;
 
 use crate::application::ApplicationConfig;
 use crate::config::config::TaskRegistry;
@@ -14,7 +14,6 @@ use crate::executor::ExecutionError;
 use crate::executor::Executor;
 use crate::executor::ExecutorCreationError;
 use crate::file_dependencies::DependencyTracker;
-use crate::tasks::TaskTrait;
 
 pub struct Application;
 
@@ -45,17 +44,17 @@ impl Application {
         info!("Executed tasks: {:?}", executed_tasks);
 
         info!("Updating saved dependencies");
-        for task in executed_tasks
+        let tasks_iter = executed_tasks
             .iter()
-            .map(|task_id| arc_config.get_task_by_id(task_id).unwrap())
-        {
-            if let Some(saved_dependencies) = Arc::get_mut(&mut arc_saved_dependencies) {
-                if let Err(e) = saved_dependencies.add_task_dependencies(task) {
-                    warn!("Failed to add dependencies for task '{}': {}", task.id(), e);
-                }
-            }
+            .map(|task_id| arc_config.get_task_by_id(task_id).unwrap());
+        if let Some(saved_dependencies) = Arc::get_mut(&mut arc_saved_dependencies) {
+            saved_dependencies.add_tasks_dependencies(tasks_iter).await;
+            saved_dependencies.write().await;
+        } else {
+            error!(
+                "Failed to get mutable reference to saved dependencies. The dependencies will not be updated."
+            );
         }
-        arc_saved_dependencies.write().await;
 
         Ok(())
     }

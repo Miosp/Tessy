@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 saphyr = "0.0.6"
 derive_more = { version = "2.0.1", features = ["full"] }
-snafu = "0.8.8"
+snafu = "0.8.9"
 hashlink = "0.10.0"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.20"
@@ -19,8 +19,9 @@ compio = { version = "0.15.0", features = [
 futures = "0.3.31"
 futures-channel = "0.3.31"
 clap = { version = "4.5.47", features = ["derive"] }
-bitcode = { version = "0.6.7", features = ["time"] }
-time = "0.3.43"
+bincode = "2.0.1"
+zstd = "0.13.3"
+fasthash = "0.4.0"
 
 [dev-dependencies]
 rstest = "0.26.1"
