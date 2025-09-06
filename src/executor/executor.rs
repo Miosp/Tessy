@@ -9,7 +9,7 @@ use futures_channel::mpsc::{self, UnboundedSender};
 use snafu::{ResultExt, Snafu};
 use tracing::{debug, info};
 
-use crate::application::ApplicationConfig;
+use crate::application::RuntimeConfig;
 use crate::config::config::TaskRegistry;
 use crate::executor::DependencyGraph;
 use crate::file_dependencies::DependencyTracker;
@@ -20,7 +20,7 @@ const DEFAULT_WORKER_THREADS: usize = 1;
 
 pub struct Executor {
     dispatcher: Dispatcher,
-    app_config: Arc<ApplicationConfig>,
+    app_config: Arc<RuntimeConfig>,
     config: Arc<TaskRegistry>,
     dependency_graph: Arc<DependencyGraph>,
     saved_dependencies: Arc<DependencyTracker>,
@@ -31,7 +31,7 @@ impl Executor {
     pub fn new(
         config: Arc<TaskRegistry>,
         dependency_graph: Arc<DependencyGraph>,
-        app_config: Arc<ApplicationConfig>,
+        app_config: Arc<RuntimeConfig>,
         saved_dependencies: Arc<DependencyTracker>,
     ) -> Result<Self, ExecutorCreationError> {
         let workers_num = Self::determine_worker_count();
@@ -203,7 +203,7 @@ impl Executor {
     ) -> Result<(), ExecutionError> {
         let task_id = task.id().clone();
 
-        if self.saved_dependencies.is_task_up_to_date(&task).await {
+        if self.saved_dependencies.is_task_up_to_date(&task, &self.app_config.root).await {
             info!("Task '{}' is up to date, skipping execution", task_id);
             let task_id_for_err = task_id.clone();
             if let Err(send_err) = task_sender.unbounded_send(Ok(task_id)) {

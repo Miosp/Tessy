@@ -2,7 +2,7 @@ use compio::{fs::File, io::AsyncReadExt, io::BufReader};
 use hashlink::LinkedHashMap;
 use saphyr::{LoadableYamlNode, Scalar, Yaml};
 use snafu::prelude::*;
-use std::{borrow::Cow, collections::HashMap, io::Cursor, path::Path};
+use std::{borrow::Cow, collections::HashMap, io::Cursor, path::{Path, PathBuf}};
 use tracing::debug;
 
 use crate::{
@@ -12,8 +12,8 @@ use crate::{
 
 const TASK_FILE_NAME: &str = "tasks.yaml";
 
-fn get_task_file_name() -> &'static Path {
-    Path::new(TASK_FILE_NAME)
+fn get_task_file_path(root: &Path) -> PathBuf {
+    root.join(TASK_FILE_NAME)
 }
 
 #[derive(Debug, Clone)]
@@ -22,34 +22,28 @@ pub struct TaskRegistry {
 }
 
 impl TaskRegistry {
-    pub async fn read() -> Result<Self, TaskRegistryCreationError> {
-        Self::from_path(get_task_file_name()).await
+    pub async fn read(root: &Path) -> Result<Self, TaskRegistryCreationError> {
+        Self::from_path(get_task_file_path(root)).await
     }
 
-    pub async fn from_path(path: &Path) -> Result<Self, TaskRegistryCreationError> {
+    pub async fn from_path(path: PathBuf) -> Result<Self, TaskRegistryCreationError> {
         debug!("Opening config file: {}", path.best_effort_path_display());
         let file = File::open(&path).await.context(ReadSnafu {
             file_path: path.best_effort_path_display(),
         })?;
-        Self::from_file(file).await
-    }
 
-    pub async fn from_file(file: File) -> Result<Self, TaskRegistryCreationError> {
         debug!("Reading config file");
         let cursor = Cursor::new(file);
         let mut reader = BufReader::new(cursor);
-
         let res = reader.read_to_string(String::new()).await;
-
         match res.0 {
             Ok(n) => debug!("Successfully read config file: {n} bytes"),
             _ => {
                 res.0.context(ReadSnafu {
-                    file_path: get_task_file_name().best_effort_path_display(),
+                    file_path: path.best_effort_path_display(),
                 })?;
             }
         }
-
         res.1.as_str().try_into()
     }
 
@@ -142,7 +136,7 @@ mod tests {
 
     #[compio::test]
     async fn config_returns_error_on_nonexistent_file() {
-        let result = TaskRegistry::from_path(Path::new("nonexistent.yaml")).await;
+        let result = TaskRegistry::from_path(Path::new("nonexistent.yaml").to_path_buf()).await;
         assert!(result.is_err());
         assert!(matches!(
             result,

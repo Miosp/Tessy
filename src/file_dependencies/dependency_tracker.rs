@@ -1,4 +1,3 @@
-use std::env;
 use std::path::Path;
 use std::{collections::HashMap, path::PathBuf};
 
@@ -12,8 +11,8 @@ use crate::tasks::{Task, TaskTrait};
 
 const STANDARD_DEPENDENCY_FILE_PATH: &str = ".tessy/dependencies.bincode.zstd";
 
-fn get_standard_dependency_file_path() -> PathBuf {
-    PathBuf::from(STANDARD_DEPENDENCY_FILE_PATH)
+fn get_standard_dependency_file_path(root: &Path) -> PathBuf {
+    root.join(STANDARD_DEPENDENCY_FILE_PATH)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Encode, Decode)]
@@ -23,15 +22,15 @@ pub struct DependencyTracker {
 
 impl DependencyTracker {
     /// Reads the dependency tracker from the standard file path
-    pub async fn read() -> Self {
-        let path = get_standard_dependency_file_path();
+    pub async fn read(root: &Path) -> Self {
+        let path = get_standard_dependency_file_path(root);
         Self::read_from_path(&path).await
     }
 
     pub async fn read_from_path(path: &Path) -> Self {
         debug!(
             "Reading dependency tracker from {}",
-            get_standard_dependency_file_path().best_effort_path_display()
+            path.best_effort_path_display()
         );
         let bytes = match fs::read(path).await {
             Ok(bytes) => bytes,
@@ -82,14 +81,18 @@ impl DependencyTracker {
         result
     }
 
-    pub async fn add_tasks_dependencies(&mut self, tasks: impl Iterator<Item = &Task>) {
+    pub async fn add_tasks_dependencies(
+        &mut self,
+        tasks: impl Iterator<Item = &Task>,
+        root: &Path,
+    ) {
         for task in tasks {
-            let deps = Self::get_dependencies_from_inputs(&task.inputs()).await;
+            let deps = Self::get_dependencies_from_inputs(&task.inputs(), root).await;
             self.dependencies.insert(task.id(), deps);
         }
     }
 
-    pub async fn is_task_up_to_date(&self, task: &Task) -> bool {
+    pub async fn is_task_up_to_date(&self, task: &Task, root: &Path) -> bool {
         let id = task.id();
         info!("Checking if task '{}' is up to date", id);
 
@@ -105,7 +108,7 @@ impl DependencyTracker {
         };
 
         let inputs = task.inputs();
-        let new_dependencies = Self::get_dependencies_from_inputs(&inputs).await;
+        let new_dependencies = Self::get_dependencies_from_inputs(&inputs, root).await;
 
         let is_up_to_date = saved_dependencies == &new_dependencies;
 
@@ -113,8 +116,8 @@ impl DependencyTracker {
     }
 
     /// Saves the dependency tracker to the standard file path
-    pub async fn write(&self) {
-        let dep_file_path = get_standard_dependency_file_path();
+    pub async fn write(&self, root: &Path) {
+        let dep_file_path = get_standard_dependency_file_path(root);
         self.write_into_path(&dep_file_path).await;
     }
 
@@ -162,19 +165,14 @@ impl DependencyTracker {
         }
     }
 
-    async fn get_dependencies_from_inputs(inputs: &[String]) -> HashMap<PathBuf, FileFingerprint> {
-        let current_dir = match env::current_dir() {
-            Ok(dir) => dir,
-            Err(e) => {
-                warn!("Failed to get current directory: {}", e);
-                return HashMap::new();
-            }
-        };
-
+    async fn get_dependencies_from_inputs(
+        inputs: &[String],
+        root: &Path,
+    ) -> HashMap<PathBuf, FileFingerprint> {
         let mut all_dependencies = HashMap::new();
 
         for input in inputs {
-            let path = current_dir.join(input);
+            let path = root.join(input);
             if let Some(deps) = Self::get_dependencies_from_input(input, &path).await {
                 for (dep_path, fingerprint) in deps {
                     all_dependencies.insert(dep_path, fingerprint);
@@ -366,7 +364,7 @@ mod tests {
         );
 
         original_tracker
-            .add_tasks_dependencies(std::iter::once(&task))
+            .add_tasks_dependencies(std::iter::once(&task), temp_dir.path())
             .await;
         original_tracker.write_into_path(&file_path).await;
 
@@ -404,7 +402,7 @@ mod tests {
         );
 
         tracker
-            .add_tasks_dependencies([&task1, &task2].iter().copied())
+            .add_tasks_dependencies([&task1, &task2].iter().copied(), temp_dir.path())
             .await;
 
         assert_eq!(tracker.dependencies.len(), 2);
@@ -442,7 +440,9 @@ mod tests {
             vec![],
         );
 
-        tracker.add_tasks_dependencies(std::iter::once(&task)).await;
+        tracker
+            .add_tasks_dependencies(std::iter::once(&task), temp_dir.path())
+            .await;
 
         assert_eq!(tracker.dependencies.len(), 1);
         let task_deps = &tracker.dependencies["dir_task"];
@@ -467,7 +467,7 @@ mod tests {
         );
 
         // Task should be out of date if no previous dependencies exist
-        assert!(!tracker.is_task_up_to_date(&task).await);
+        assert!(!tracker.is_task_up_to_date(&task, temp_dir.path()).await);
     }
 
     #[compio::test]
@@ -484,10 +484,12 @@ mod tests {
         );
 
         // Add initial dependencies
-        tracker.add_tasks_dependencies(std::iter::once(&task)).await;
+        tracker
+            .add_tasks_dependencies(std::iter::once(&task), temp_dir.path())
+            .await;
 
         // Task should be up to date since file hasn't changed
-        assert!(tracker.is_task_up_to_date(&task).await);
+        assert!(tracker.is_task_up_to_date(&task, temp_dir.path()).await);
     }
 
     #[compio::test]
@@ -506,7 +508,9 @@ mod tests {
         );
 
         // Add initial dependencies
-        tracker.add_tasks_dependencies(std::iter::once(&task)).await;
+        tracker
+            .add_tasks_dependencies(std::iter::once(&task), temp_dir.path())
+            .await;
 
         // Wait a bit to ensure different modification time
         std::thread::sleep(std::time::Duration::from_millis(10));
@@ -515,7 +519,7 @@ mod tests {
         std::fs::write(&test_file_path, "modified content").expect("Failed to write file");
 
         // Task should be out of date since file has changed
-        assert!(!tracker.is_task_up_to_date(&task).await);
+        assert!(!tracker.is_task_up_to_date(&task, temp_dir.path()).await);
     }
 
     #[compio::test]
@@ -531,10 +535,12 @@ mod tests {
         );
 
         // Add dependencies (will be empty since file doesn't exist)
-        tracker.add_tasks_dependencies(std::iter::once(&task)).await;
+        tracker
+            .add_tasks_dependencies(std::iter::once(&task), temp_dir.path())
+            .await;
 
         // Task should be up to date if it has no dependencies due to nonexistent files
-        assert!(tracker.is_task_up_to_date(&task).await);
+        assert!(tracker.is_task_up_to_date(&task, temp_dir.path()).await);
     }
 
     #[compio::test]
@@ -582,7 +588,9 @@ mod tests {
             vec![],
         );
 
-        tracker.add_tasks_dependencies(std::iter::once(&task)).await;
+        tracker
+            .add_tasks_dependencies(std::iter::once(&task), temp_dir.path())
+            .await;
 
         let task_deps = &tracker.dependencies["nested_task"];
 
@@ -613,7 +621,7 @@ mod tests {
         );
 
         tracker
-            .add_tasks_dependencies([&task1, &task2].iter().copied())
+            .add_tasks_dependencies([&task1, &task2].iter().copied(), temp_dir.path())
             .await;
 
         assert_eq!(tracker.dependencies.len(), 2);
@@ -633,15 +641,18 @@ mod tests {
 
     #[compio::test]
     async fn test_empty_inputs() {
+        let temp_dir = TempDir::new().expect("Failed to create temp directory");
         let mut tracker = DependencyTracker::default();
         let task = create_test_task("empty_task", vec![], vec![]);
 
-        tracker.add_tasks_dependencies(std::iter::once(&task)).await;
+        tracker
+            .add_tasks_dependencies(std::iter::once(&task), temp_dir.path())
+            .await;
 
         let task_deps = &tracker.dependencies["empty_task"];
         assert!(task_deps.is_empty());
 
         // Empty task should be up to date
-        assert!(tracker.is_task_up_to_date(&task).await);
+        assert!(tracker.is_task_up_to_date(&task, temp_dir.path()).await);
     }
 }

@@ -1,7 +1,7 @@
 pub mod data;
 
 mod application;
-mod config;
+mod runtime_config;
 
 pub use application::*;
-pub use config::*;
+pub use runtime_config::*;
