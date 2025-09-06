@@ -1,6 +1,5 @@
 pub mod data;
 
-
 mod application_impl;
 mod runtime_config;
 

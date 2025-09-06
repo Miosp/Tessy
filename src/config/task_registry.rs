@@ -91,7 +91,8 @@ impl TryFrom<&str> for TaskRegistry {
     fn try_from(contents: &str) -> Result<Self, Self::Error> {
         let contents_vec = Yaml::load_from_str(contents)
             .map_err(|e| TaskRegistryCreationError::ParseError { source: e })?;
-        let contents = contents_vec.first()
+        let contents = contents_vec
+            .first()
             .ok_or(TaskRegistryCreationError::MalformedConfig)?;
 
         let top_level = contents
