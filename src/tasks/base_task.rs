@@ -187,7 +187,7 @@ mod tests {
             Yaml::Value(Scalar::String("valid_dep".into())),
             Yaml::Value(Scalar::Integer(42)), // This should be filtered out
             Yaml::Value(Scalar::String("another_valid_dep".into())),
-            Yaml::Value(Scalar::FloatingPoint(OrderedFloat(3.14))), // This should be filtered out
+            Yaml::Value(Scalar::FloatingPoint(OrderedFloat(1.23))), // This should be filtered out
         ];
         task_data.insert(
             Yaml::Value(Scalar::String("dependsOn".into())),
@@ -211,7 +211,7 @@ mod tests {
             Yaml::Value(Scalar::String("valid_file.rs".into())),
             Yaml::Value(Scalar::Integer(42)), // This should be filtered out
             Yaml::Value(Scalar::String("another_file.toml".into())),
-            Yaml::Value(Scalar::FloatingPoint(OrderedFloat(3.14))), // This should be filtered out
+            Yaml::Value(Scalar::FloatingPoint(OrderedFloat(1.23))), // This should be filtered out
         ];
         task_data.insert(
             Yaml::Value(Scalar::String("inputs".into())),

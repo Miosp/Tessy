@@ -7,8 +7,8 @@ use tracing::error;
 use tracing::info;
 
 use crate::application::RuntimeConfig;
-use crate::config::config::TaskRegistry;
-use crate::config::config::TaskRegistryCreationError;
+use crate::config::task_registry::TaskRegistry;
+use crate::config::task_registry::TaskRegistryCreationError;
 use crate::executor::DependencyGraph;
 use crate::executor::ExecutionError;
 use crate::executor::Executor;
@@ -26,7 +26,7 @@ impl Application {
         debug!("Loaded config: {:?}", config);
 
         let arc_app_config = Arc::new(app_config);
-        let saved_dependencies_fut = DependencyTracker::read(&arc_app_config.root.as_ref());
+        let saved_dependencies_fut = DependencyTracker::read(arc_app_config.root.as_ref());
         let dependency_graph = DependencyGraph::from_config(&config, &arc_app_config.target);
 
         let arc_config = Arc::new(config);

@@ -10,7 +10,7 @@ use snafu::{ResultExt, Snafu};
 use tracing::{debug, info};
 
 use crate::application::RuntimeConfig;
-use crate::config::config::TaskRegistry;
+use crate::config::task_registry::TaskRegistry;
 use crate::executor::DependencyGraph;
 use crate::file_dependencies::DependencyTracker;
 use crate::tasks::{Task, TaskError, TaskTrait};
@@ -55,7 +55,7 @@ impl Executor {
     fn determine_worker_count() -> NonZeroUsize {
         available_parallelism()
             .map(|n| n.get())
-            .map(|n| NonZeroUsize::new(n))
+            .map(NonZeroUsize::new)
             .ok()
             .flatten()
             .unwrap_or_else(|| NonZeroUsize::new(DEFAULT_WORKER_THREADS).unwrap())

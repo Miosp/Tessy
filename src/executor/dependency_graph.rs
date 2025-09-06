@@ -5,7 +5,7 @@ use snafu::location;
 use tracing::debug;
 use tracing::error;
 
-use crate::config::config::TaskRegistry;
+use crate::config::task_registry::TaskRegistry;
 use crate::tasks::TaskTrait;
 
 /// Stores the dependency graph of tasks in the executor module.
