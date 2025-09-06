@@ -20,6 +20,7 @@
 ///     }
 /// }
 /// ```
+#[allow(dead_code)]
 pub trait AsyncFrom<T>: Sized {
     /// The error type that can occur during conversion.
     type Error;
@@ -55,6 +56,7 @@ pub trait AsyncFrom<T>: Sized {
 ///     }
 /// }
 /// ```
+#[allow(dead_code)]
 pub trait AsyncInto<T> {
     /// The error type that can occur during conversion.
     type Error;
@@ -67,6 +69,7 @@ pub trait AsyncInto<T> {
 /// where `U` implements `AsyncFrom<T>`.
 ///
 /// This mirrors the standard library's blanket implementation for `Into<T>`.
+#[allow(dead_code)]
 impl<T, U> AsyncInto<U> for T
 where
     U: AsyncFrom<T>,
@@ -82,6 +85,7 @@ where
 ///
 /// This trait is useful when you want to express that a type can be converted
 /// both ways asynchronously.
+#[allow(dead_code)]
 pub trait AsyncTryFrom<T>: Sized {
     /// The error type that can occur during conversion.
     type Error;
@@ -91,6 +95,7 @@ pub trait AsyncTryFrom<T>: Sized {
 }
 
 /// Async counterpart to `TryInto<T>`.
+#[allow(dead_code)]
 pub trait AsyncTryInto<T> {
     /// The error type that can occur during conversion.
     type Error;
@@ -100,6 +105,7 @@ pub trait AsyncTryInto<T> {
 }
 
 /// Blanket implementation for `AsyncTryInto<U>` when `U` implements `AsyncTryFrom<T>`.
+#[allow(dead_code)]
 impl<T, U> AsyncTryInto<U> for T
 where
     U: AsyncTryFrom<T>,
