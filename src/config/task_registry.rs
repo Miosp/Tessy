@@ -2,7 +2,12 @@ use compio::{fs::File, io::AsyncReadExt, io::BufReader};
 use hashlink::LinkedHashMap;
 use saphyr::{LoadableYamlNode, Scalar, Yaml};
 use snafu::prelude::*;
-use std::{borrow::Cow, collections::HashMap, io::Cursor, path::{Path, PathBuf}};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    io::Cursor,
+    path::{Path, PathBuf},
+};
 use tracing::debug;
 
 use crate::{
@@ -65,10 +70,10 @@ impl TaskRegistry {
             .ok_or(TaskRegistryCreationError::TasksNotMap)?
             .iter()
             .filter_map(|(key, value)| {
-                if let Yaml::Value(Scalar::String(task_name)) = key {
-                    if let Yaml::Mapping(task_data) = value {
-                        return Some((task_name, task_data));
-                    }
+                if let Yaml::Value(Scalar::String(task_name)) = key
+                    && let Yaml::Mapping(task_data) = value
+                {
+                    return Some((task_name, task_data));
                 }
                 debug!("Skipping invalid task entry: {:?}", key);
                 None
@@ -87,7 +92,7 @@ impl TryFrom<&str> for TaskRegistry {
         let contents_vec = Yaml::load_from_str(contents)
             .map_err(|e| TaskRegistryCreationError::ParseError { source: e })?;
         let contents = contents_vec
-            .get(0)
+            .first()
             .ok_or(TaskRegistryCreationError::MalformedConfig)?;
 
         let top_level = contents
@@ -98,12 +103,12 @@ impl TryFrom<&str> for TaskRegistry {
             .into_iter()
             .map(|task| (task.id(), task))
             .try_fold(HashMap::new(), |mut acc, (id, task)| {
-                if acc.contains_key(&id) {
+                if let std::collections::hash_map::Entry::Vacant(e) = acc.entry(id.clone()) {
+                    e.insert(task);
+                    Ok(acc)
+                } else {
                     // For now unreachable, as Saphyr automatically prevents duplicate keys
                     Err(TaskRegistryCreationError::DuplicateTask { task_name: id })
-                } else {
-                    acc.insert(id, task);
-                    Ok(acc)
                 }
             })?;
 

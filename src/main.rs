@@ -1,3 +1,5 @@
+#![allow(clippy::enum_variant_names)]
+
 use clap::Parser as _;
 use tracing::debug;
 
@@ -9,10 +11,10 @@ use crate::{
 mod application;
 mod cli;
 mod config;
-mod file_dependencies;
 mod executor;
-mod tasks;
 mod ext;
+mod file_dependencies;
+mod tasks;
 
 #[compio::main]
 #[snafu::report]

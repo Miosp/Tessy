@@ -48,7 +48,7 @@ impl DependencyTracker {
 
     pub async fn read_from_bytes(bytes: &[u8]) -> Self {
         debug!("Reading dependency tracker from bytes");
-        let decompressed_bytes = match zstd::decode_all(&bytes[..]) {
+        let decompressed_bytes = match zstd::decode_all(bytes) {
             Ok(decompressed) => decompressed,
             Err(e) => {
                 warn!("Failed to decompress dependency tracker: {}", e);
@@ -87,7 +87,7 @@ impl DependencyTracker {
         root: &Path,
     ) {
         for task in tasks {
-            let deps = Self::get_dependencies_from_inputs(&task.inputs(), root).await;
+            let deps = Self::get_dependencies_from_inputs(task.inputs(), root).await;
             self.dependencies.insert(task.id(), deps);
         }
     }
@@ -108,11 +108,9 @@ impl DependencyTracker {
         };
 
         let inputs = task.inputs();
-        let new_dependencies = Self::get_dependencies_from_inputs(&inputs, root).await;
+        let new_dependencies = Self::get_dependencies_from_inputs(inputs, root).await;
 
-        let is_up_to_date = saved_dependencies == &new_dependencies;
-
-        is_up_to_date
+        saved_dependencies == &new_dependencies
     }
 
     /// Saves the dependency tracker to the standard file path

@@ -10,7 +10,7 @@ use snafu::{ResultExt, Snafu};
 use tracing::{debug, info};
 
 use crate::application::RuntimeConfig;
-use crate::config::config::TaskRegistry;
+use crate::config::task_registry::TaskRegistry;
 use crate::executor::DependencyGraph;
 use crate::file_dependencies::DependencyTracker;
 use crate::tasks::{Task, TaskError, TaskTrait};
@@ -55,7 +55,7 @@ impl Executor {
     fn determine_worker_count() -> NonZeroUsize {
         available_parallelism()
             .map(|n| n.get())
-            .map(|n| NonZeroUsize::new(n))
+            .map(NonZeroUsize::new)
             .ok()
             .flatten()
             .unwrap_or_else(|| NonZeroUsize::new(DEFAULT_WORKER_THREADS).unwrap())
@@ -165,15 +165,15 @@ impl Executor {
                 );
 
                 // If all dependencies are satisfied, dispatch the parent task
-                if *count == 0 {
-                    if let Some(task) = self.config.get_task_by_id(&parent_id) {
-                        debug!(
-                            "All dependencies satisfied for task '{}', dispatching",
-                            parent_id
-                        );
-                        self.dispatch_task(task_sender.clone(), task.clone())
-                            .await?;
-                    }
+                if *count == 0
+                    && let Some(task) = self.config.get_task_by_id(&parent_id)
+                {
+                    debug!(
+                        "All dependencies satisfied for task '{}', dispatching",
+                        parent_id
+                    );
+                    self.dispatch_task(task_sender.clone(), task.clone())
+                        .await?;
                 }
             }
         }
@@ -203,7 +203,11 @@ impl Executor {
     ) -> Result<(), ExecutionError> {
         let task_id = task.id().clone();
 
-        if self.saved_dependencies.is_task_up_to_date(&task, &self.app_config.root).await {
+        if self
+            .saved_dependencies
+            .is_task_up_to_date(&task, &self.app_config.root)
+            .await
+        {
             info!("Task '{}' is up to date, skipping execution", task_id);
             let task_id_for_err = task_id.clone();
             if let Err(send_err) = task_sender.unbounded_send(Ok(task_id)) {
