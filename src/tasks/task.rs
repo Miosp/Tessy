@@ -7,11 +7,7 @@ use snafu::Snafu;
 
 use crate::tasks::{ExecuteTask, ExecuteTaskError};
 
-pub fn print_from_task(
-    id: impl AsRef<str>,
-    color: Color,
-    message: impl AsRef<str>,
-) {
+pub fn print_from_task(id: impl AsRef<str>, color: Color, message: impl AsRef<str>) {
     let task_info = format!("[{}]", id.as_ref());
 
     match supports_color::on_cached(supports_color::Stream::Stdout) {
