@@ -6,6 +6,8 @@ use snafu::{ResultExt, Snafu};
 use std::{borrow::Cow, process::Stdio};
 use tracing::{debug, info};
 
+use crate::tasks::task::print_from_task;
+
 use super::{BaseTask, TaskError, TaskTrait};
 
 #[derive(Debug, Clone)]
@@ -41,12 +43,12 @@ impl TaskTrait for ExecuteTask {
 
         // Handle stdout
         if let Some(stdout) = handle.stdout.take() {
-            Self::spawn_stdout_handler(stdout, self.id());
+            self.spawn_stdout_handler(stdout, self.id());
         }
 
         // Handle stderr
         if let Some(stderr) = handle.stderr.take() {
-            Self::spawn_stderr_handler(stderr, self.id());
+            self.spawn_stderr_handler(stderr, self.id());
         }
 
         let status = handle
@@ -112,8 +114,9 @@ impl ExecuteTask {
     }
 
     /// Spawns a task to handle stdout stream
-    fn spawn_stdout_handler(stdout: compio::process::ChildStdout, task_id: String) {
+    fn spawn_stdout_handler(&self, stdout: compio::process::ChildStdout, task_id: String) {
         let stream = AsyncStream::new(stdout);
+        let color = self.color();
         //TODO - return the handle to the spawned task and ensure proper shutdown
         spawn(async move {
             let reader = BufReader::new(stream);
@@ -123,7 +126,7 @@ impl ExecuteTask {
                 match line_result {
                     Ok(line) => {
                         if !line.trim().is_empty() {
-                            info!("[{}]: {}", task_id, line.trim());
+                            print_from_task(&task_id, color, line.trim());
                         }
                     }
                     Err(e) => {
@@ -136,8 +139,9 @@ impl ExecuteTask {
     }
 
     /// Spawns a task to handle stderr stream
-    fn spawn_stderr_handler(stderr: compio::process::ChildStderr, task_id: String) {
+    fn spawn_stderr_handler(&self, stderr: compio::process::ChildStderr, task_id: String) {
         let stream = AsyncStream::new(stderr);
+        let color = self.color();
         //TODO - return the handle to the spawned task and ensure proper shutdown
         spawn(async move {
             let reader = BufReader::new(stream);
@@ -147,7 +151,7 @@ impl ExecuteTask {
                 match line_result {
                     Ok(line) => {
                         if !line.trim().is_empty() {
-                            info!("[{} stderr]: {}", task_id, line.trim());
+                            print_from_task(&task_id, color, line.trim());
                         }
                     }
                     Err(e) => {
