@@ -165,15 +165,15 @@ impl Executor {
                 );
 
                 // If all dependencies are satisfied, dispatch the parent task
-                if *count == 0 {
-                    if let Some(task) = self.config.get_task_by_id(&parent_id) {
-                        debug!(
-                            "All dependencies satisfied for task '{}', dispatching",
-                            parent_id
-                        );
-                        self.dispatch_task(task_sender.clone(), task.clone())
-                            .await?;
-                    }
+                if *count == 0
+                    && let Some(task) = self.config.get_task_by_id(&parent_id)
+                {
+                    debug!(
+                        "All dependencies satisfied for task '{}', dispatching",
+                        parent_id
+                    );
+                    self.dispatch_task(task_sender.clone(), task.clone())
+                        .await?;
                 }
             }
         }
