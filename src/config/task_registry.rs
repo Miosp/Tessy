@@ -71,9 +71,10 @@ impl TaskRegistry {
             .iter()
             .filter_map(|(key, value)| {
                 if let Yaml::Value(Scalar::String(task_name)) = key
-                    && let Yaml::Mapping(task_data) = value {
-                        return Some((task_name, task_data));
-                    }
+                    && let Yaml::Mapping(task_data) = value
+                {
+                    return Some((task_name, task_data));
+                }
                 debug!("Skipping invalid task entry: {:?}", key);
                 None
             })
