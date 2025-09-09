@@ -25,3 +25,4 @@ target
 
 # Own tessy files
 .tessy
+tasks.yaml
