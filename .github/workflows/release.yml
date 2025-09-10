@@ -71,12 +71,12 @@ jobs:
       - name: Upload x86_64 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tessy-windows-x86_64.exe
+          name: tessy-windows-x86_64
           path: target\x86_64-pc-windows-msvc\release\tessy.exe
       - name: Upload aarch64 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tessy-windows-aarch64.exe
+          name: tessy-windows-aarch64
           path: target\aarch64-pc-windows-msvc\release\tessy.exe
 
   build-macos:
@@ -160,20 +160,32 @@ jobs:
 
       - name: Print names of artifacts
         run: |
-          echo "Artifacts:"
-          ls ./artifacts
+          echo "Artifacts directory structure:"
+          find ./artifacts -type f -exec ls -la {} \;
+
+      - name: Rename artifacts for release
+        run: |
+          mkdir -p ./release-artifacts
+          cp ./artifacts/tessy-macos-x86_64/tessy ./release-artifacts/tessy-macos-x86_64
+          cp ./artifacts/tessy-macos-aarch64/tessy ./release-artifacts/tessy-macos-aarch64
+          cp ./artifacts/tessy-linux-x86_64/tessy ./release-artifacts/tessy-linux-x86_64
+          cp ./artifacts/tessy-linux-aarch64/tessy ./release-artifacts/tessy-linux-aarch64
+          cp ./artifacts/tessy-windows-x86_64/tessy.exe ./release-artifacts/tessy-windows-x86_64.exe
+          cp ./artifacts/tessy-windows-aarch64/tessy.exe ./release-artifacts/tessy-windows-aarch64.exe
+          echo "Release artifacts:"
+          ls -la ./release-artifacts/
 
       - name: Create release draft
         id: create-release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ./artifacts/tessy-macos-x86_64
-            ./artifacts/tessy-macos-aarch64
-            ./artifacts/tessy-linux-x86_64
-            ./artifacts/tessy-linux-aarch64
-            ./artifacts/tessy-windows-x86_64.exe
-            ./artifacts/tessy-windows-aarch64.exe
+            ./release-artifacts/tessy-macos-x86_64
+            ./release-artifacts/tessy-macos-aarch64
+            ./release-artifacts/tessy-linux-x86_64
+            ./release-artifacts/tessy-linux-aarch64
+            ./release-artifacts/tessy-windows-x86_64.exe
+            ./release-artifacts/tessy-windows-aarch64.exe
           draft: true
           generate_release_notes: true
 
