@@ -117,13 +117,22 @@ jobs:
       - name: Install musl tools (Linux musl targets)
         if: contains(matrix.target, 'musl')
         run: |
-          sudo apt-get install -y musl-tools
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.target }}
-
+          sudo apt-get install -y musl-tools musl-dev
+          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-musl" ]]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu
+            # Create a wrapper script for musl linking
+            sudo tee /usr/local/bin/aarch64-linux-musl-gcc > /dev/null << 'EOF'
+            #!/bin/bash
+            exec aarch64-linux-gnu-gcc -static "$@"
+      - name: Build binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
+            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+          elif [[ "${{ matrix.target }}" == "aarch64-unknown-linux-musl" ]]; then
+            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc
+          fi
+          cargo build --release --target ${{ matrix.target }}
       - name: Build binary (Unix)
         if: matrix.os != 'windows-latest'
         run: |
