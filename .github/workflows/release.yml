@@ -132,9 +132,11 @@ jobs:
         run:  |
           cargo build --release --target x86_64-unknown-linux-gnu
           tar -czf target/x86_64-unknown-linux-gnu/release/tessy.tar.gz -C target/x86_64-unknown-linux-gnu/release tessy
+      - name: Install arm64 cross-compilation dependencies
+        run: sudo apt-get install -y gcc-aarch64-linux-gnu
       - name: Build aarch64 binary
         run:  |
-          cross build --release --target aarch64-unknown-linux-gnu
+          cargo build --release --target aarch64-unknown-linux-gnu
           tar -czf target/aarch64-unknown-linux-gnu/release/tessy.tar.gz -C target/aarch64-unknown-linux-gnu/release tessy
       - name: Build x86_64 musl binary
         run: |
