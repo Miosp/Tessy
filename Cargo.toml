@@ -21,7 +21,7 @@ futures-channel = "0.3.31"
 clap = { version = "4.5.47", features = ["derive"] }
 bincode = "2.0.1"
 zstd = "0.13.3"
-fasthash = "0.4.0"
+metrohash = "1.0.7"
 supports-color = "3.0.2"
 colored = "3.0.0"
 
