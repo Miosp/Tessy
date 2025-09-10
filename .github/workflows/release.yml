@@ -51,131 +51,127 @@ jobs:
         id: version
         run: echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
 
-  build:
-    name: Build
+  build-windows:
+    name: Build for Windows
     needs: update-version
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          # Linux targets
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            artifact_name: tessy
-            asset_name: tessy-linux-x86_64
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            artifact_name: tessy
-            asset_name: tessy-linux-aarch64
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            artifact_name: tessy
-            asset_name: tessy-linux-x86_64-musl
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-musl
-            artifact_name: tessy
-            asset_name: tessy-linux-aarch64-musl
-
-          # Windows targets
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            artifact_name: tessy.exe
-            asset_name: tessy-windows-x86_64.exe
-          - os: windows-latest
-            target: aarch64-pc-windows-msvc
-            artifact_name: tessy.exe
-            asset_name: tessy-windows-aarch64.exe
-
-          # macOS targets
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            artifact_name: tessy
-            asset_name: tessy-macos-x86_64
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            artifact_name: tessy
-            asset_name: tessy-macos-aarch64
-
+    runs-on: windows-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
-
-      - name: Install cross-compilation dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          if [[ "${{ matrix.target }}" == *"aarch64"* ]]; then
-            sudo apt-get install -y gcc-aarch64-linux-gnu
-          else
-            sudo apt-get install -y gcc-multilib
-          fi
-
-      - name: Install musl tools (Linux musl targets)
-        if: contains(matrix.target, 'musl')
-        run: |
-          sudo apt-get install -y musl-tools musl-dev
-          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-musl" ]]; then
-            sudo apt-get install -y gcc-aarch64-linux-gnu
-            # Create a wrapper script for musl linking
-            sudo tee /usr/local/bin/aarch64-linux-musl-gcc > /dev/null << 'EOF'
-          #!/bin/bash
-          exec aarch64-linux-gnu-gcc -static "$@"
-          EOF
-            sudo chmod +x /usr/local/bin/aarch64-linux-musl-gcc
-          fi
-
-      - name: Build binary (Unix)
-        if: matrix.os != 'windows-latest'
-        run: |
-          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
-            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
-          elif [[ "${{ matrix.target }}" == "aarch64-unknown-linux-musl" ]]; then
-            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc
-          fi
-          cargo build --release --target ${{ matrix.target }}
-      - name: Build binary (Unix)
-        if: matrix.os != 'windows-latest'
-        run: |
-          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
-            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
-          elif [[ "${{ matrix.target }}" == "aarch64-unknown-linux-musl" ]]; then
-            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc
-          fi
-          cargo build --release --target ${{ matrix.target }}
-
-      - name: Build binary (Windows)
-        if: matrix.os == 'windows-latest'
-        run: cargo build --release --target ${{ matrix.target }}
-
-      - name: Create tarball (Unix)
-        if: matrix.os != 'windows-latest'
-        run: |
-          cd target/${{ matrix.target }}/release
-          tar -czf ${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
-          echo "ASSET_PATH=target/${{ matrix.target }}/release/${{ matrix.asset_name }}.tar.gz" >> $GITHUB_ENV
-          echo "ASSET_NAME=${{ matrix.asset_name }}.tar.gz" >> $GITHUB_ENV
-
-      - name: Create zip (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          cd target/${{ matrix.target }}/release
-          Compress-Archive -Path ${{ matrix.artifact_name }} -DestinationPath ${{ matrix.asset_name }}.zip
-          echo "ASSET_PATH=target/${{ matrix.target }}/release/${{ matrix.asset_name }}.zip" >> $env:GITHUB_ENV
-          echo "ASSET_NAME=${{ matrix.asset_name }}.zip" >> $env:GITHUB_ENV
-
-      - name: Upload artifact
+          targets: x86_64-pc-windows-msvc,aarch64-pc-windows-msvc
+      - name: Build x86_64 binary
+        run:  |
+          cargo build --release --target x86_64-pc-windows-msvc
+          Compress-Archive -Path target\x86_64-pc-windows-msvc\release\tessy.exe -DestinationPath target\x86_64-pc-windows-msvc\release\tessy.zip
+      - name: Build aarch64 binary
+        run:  |
+          cargo build --release --target aarch64-pc-windows-msvc
+          Compress-Archive -Path target\aarch64-pc-windows-msvc\release\tessy.exe -DestinationPath target\aarch64-pc-windows-msvc\release\tessy.zip
+      - name: Upload x86_64 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset_name }}${{ matrix.os == 'windows-latest' && '.zip' || '.tar.gz' }}
-          path: ${{ matrix.os == 'windows-latest' && format('target/{0}/release/{1}.zip', matrix.target, matrix.asset_name) || format('target/{0}/release/{1}.tar.gz', matrix.target, matrix.asset_name) }}
+          name: tessy-windows-x86_64.zip
+          path: target\x86_64-pc-windows-msvc\release\tessy.zip
+          compression-level: 0
+      - name: Upload aarch64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tessy-windows-aarch64.zip
+          path: target\aarch64-pc-windows-msvc\release\tessy.zip
+          compression-level: 0
+
+  build-macos:
+    name: Build for macOS
+    needs: update-version
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
+      - name: Build x86_64 binary
+        run:  |
+          cargo build --release --target x86_64-apple-darwin
+          tar -czf target/x86_64-apple-darwin/release/tessy.tar.gz -C target/x86_64-apple-darwin/release tessy
+      - name: Build aarch64 binary
+        run:  |
+          cargo build --release --target aarch64-apple-darwin
+          tar -czf target/aarch64-apple-darwin/release/tessy.tar.gz -C target/aarch64-apple-darwin/release tessy
+      - name: Upload x86_64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tessy-macos-x86_64.tar.gz
+          path: target/x86_64-apple-darwin/release/tessy.tar.gz
+          compression-level: 0
+      - name: Upload aarch64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tessy-macos-aarch64.tar.gz
+          path: target/aarch64-apple-darwin/release/tessy.tar.gz
+          compression-level: 0
+
+  build-linux:
+    name: Build for Linux
+    needs: update-version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu,aarch64-unknown-linux-gnu
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+      - name: Build x86_64 binary
+        run:  |
+          cargo build --release --target x86_64-unknown-linux-gnu
+          tar -czf target/x86_64-unknown-linux-gnu/release/tessy.tar.gz -C target/x86_64-unknown-linux-gnu/release tessy
+      - name: Build aarch64 binary
+        run:  |
+          cargo build --release --target aarch64-unknown-linux-gnu
+          tar -czf target/aarch64-unknown-linux-gnu/release/tessy.tar.gz -C target/aarch64-unknown-linux-gnu/release tessy
+      - name: Build x86_64 musl binary
+        run: |
+          cross build --release --target x86_64-unknown-linux-musl
+          tar -czf target/x86_64-unknown-linux-musl/release/tessy.tar.gz -C target/x86_64-unknown-linux-musl/release tessy
+      - name: Build aarch64 musl binary
+        run: |
+          cross build --release --target aarch64-unknown-linux-musl
+          tar -czf target/aarch64-unknown-linux-musl/release/tessy.tar.gz -C target/aarch64-unknown-linux-musl/release tessy
+      - name: Upload x86_64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tessy-linux-x86_64-musl.tar.gz
+          path: target/x86_64-unknown-linux-musl/release/tessy.tar.gz
+          compression-level: 0
+      - name: Upload aarch64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tessy-linux-aarch64-musl.tar.gz
+          path: target/aarch64-unknown-linux-musl/release/tessy.tar.gz
+          compression-level: 0
+      - name: Upload x86_64 musl artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tessy-linux-x86_64-musl.tar.gz
+          path: target/x86_64-unknown-linux-musl/release/tessy.tar.gz
+          compression-level: 0
+      - name: Upload aarch64 musl artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tessy-linux-aarch64-musl.tar.gz
+          path: target/aarch64-unknown-linux-musl/release/tessy.tar.gz
+          compression-level: 0
 
   create-release:
     name: Create Release
-    needs: [update-version, build]
+    needs: [build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -200,7 +196,6 @@ jobs:
         run: |
           echo "## Release Created! 🎉" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version:** v${{ needs.update-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Status:** Draft (ready for manual review)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
