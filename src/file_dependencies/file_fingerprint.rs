@@ -5,7 +5,7 @@ use std::{
 
 use bincode::{Decode, Encode};
 use compio::fs;
-use fasthash::MetroHasher;
+use metrohash::MetroHash64;
 use snafu::{ResultExt, Snafu};
 use std::hash::Hasher;
 
@@ -41,7 +41,7 @@ impl AsyncTryFrom<&Path> for FileFingerprint {
             path: path.to_path_buf(),
         })?;
 
-        let mut hasher = MetroHasher::default();
+        let mut hasher = MetroHash64::new();
         hasher.write(&bytes);
         let hash = hasher.finish();
 
