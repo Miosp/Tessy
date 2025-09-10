@@ -96,7 +96,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
-        with:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
