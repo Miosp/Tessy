@@ -65,23 +65,19 @@ jobs:
       - name: Build x86_64 binary
         run:  |
           cargo build --release --target x86_64-pc-windows-msvc
-          Compress-Archive -Path target\x86_64-pc-windows-msvc\release\tessy.exe -DestinationPath target\x86_64-pc-windows-msvc\release\tessy.zip
       - name: Build aarch64 binary
         run:  |
           cargo build --release --target aarch64-pc-windows-msvc
-          Compress-Archive -Path target\aarch64-pc-windows-msvc\release\tessy.exe -DestinationPath target\aarch64-pc-windows-msvc\release\tessy.zip
       - name: Upload x86_64 artifact
         uses: actions/upload-artifact@v4
         with:
           name: tessy-windows-x86_64.zip
-          path: target\x86_64-pc-windows-msvc\release\tessy.zip
-          compression-level: 0
+          path: target\x86_64-pc-windows-msvc\release\tessy.exe
       - name: Upload aarch64 artifact
         uses: actions/upload-artifact@v4
         with:
           name: tessy-windows-aarch64.zip
-          path: target\aarch64-pc-windows-msvc\release\tessy.zip
-          compression-level: 0
+          path: target\aarch64-pc-windows-msvc\release\tessy.exe
 
   build-macos:
     name: Build for macOS
@@ -97,23 +93,19 @@ jobs:
       - name: Build x86_64 binary
         run:  |
           cargo build --release --target x86_64-apple-darwin
-          tar -czf target/x86_64-apple-darwin/release/tessy.tar.gz -C target/x86_64-apple-darwin/release tessy
       - name: Build aarch64 binary
         run:  |
           cargo build --release --target aarch64-apple-darwin
-          tar -czf target/aarch64-apple-darwin/release/tessy.tar.gz -C target/aarch64-apple-darwin/release tessy
       - name: Upload x86_64 artifact
         uses: actions/upload-artifact@v4
         with:
           name: tessy-macos-x86_64.tar.gz
-          path: target/x86_64-apple-darwin/release/tessy.tar.gz
-          compression-level: 0
+          path: target/x86_64-apple-darwin/release/tessy
       - name: Upload aarch64 artifact
         uses: actions/upload-artifact@v4
         with:
           name: tessy-macos-aarch64.tar.gz
-          path: target/aarch64-apple-darwin/release/tessy.tar.gz
-          compression-level: 0
+          path: target/aarch64-apple-darwin/release/tessy
 
   build-linux:
     name: Build for Linux
@@ -140,28 +132,26 @@ jobs:
       - name: Build x86_64 binary
         run:  |
           cargo build --release --target x86_64-unknown-linux-gnu
-          tar -czf target/x86_64-unknown-linux-gnu/release/tessy.tar.gz -C target/x86_64-unknown-linux-gnu/release tessy
       - name: Build aarch64 binary
         run:  |
           cargo build --release --target aarch64-unknown-linux-gnu
-          tar -czf target/aarch64-unknown-linux-gnu/release/tessy.tar.gz -C target/aarch64-unknown-linux-gnu/release tessy
       - name: Upload x86_64 artifact
         uses: actions/upload-artifact@v4
         with:
           name: tessy-linux-x86_64.tar.gz
-          path: target/x86_64-unknown-linux-gnu/release/tessy.tar.gz
-          compression-level: 0
+          path: target/x86_64-unknown-linux-gnu/release/tessy
       - name: Upload aarch64 artifact
         uses: actions/upload-artifact@v4
         with:
           name: tessy-linux-aarch64.tar.gz
-          path: target/aarch64-unknown-linux-gnu/release/tessy.tar.gz
-          compression-level: 0
+          path: target/aarch64-unknown-linux-gnu/release/tessy
 
   create-release:
     name: Create Release
     needs: [build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
