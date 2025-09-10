@@ -71,12 +71,12 @@ jobs:
       - name: Upload x86_64 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tessy-windows-x86_64
+          name: tessy-windows-x86_64.exe
           path: target\x86_64-pc-windows-msvc\release\tessy.exe
       - name: Upload aarch64 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tessy-windows-aarch64
+          name: tessy-windows-aarch64.exe
           path: target\aarch64-pc-windows-msvc\release\tessy.exe
 
   build-macos:
@@ -168,12 +168,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ./artifacts/tessy-macos-x86_64.zip
-            ./artifacts/tessy-macos-aarch64.zip
-            ./artifacts/tessy-linux-x86_64.zip
-            ./artifacts/tessy-linux-aarch64.zip
-            ./artifacts/tessy-windows-x86_64.zip
-            ./artifacts/tessy-windows-aarch64.zip
+            ./artifacts/tessy-macos-x86_64
+            ./artifacts/tessy-macos-aarch64
+            ./artifacts/tessy-linux-x86_64
+            ./artifacts/tessy-linux-aarch64
+            ./artifacts/tessy-windows-x86_64.exe
+            ./artifacts/tessy-windows-aarch64.exe
           draft: true
           generate_release_notes: true
 
