@@ -1,4 +1,6 @@
 name: Release
+permissions:
+  contents: read
 
 on:
   workflow_dispatch:
@@ -14,6 +16,8 @@ env:
 jobs:
   update-version:
     name: Update Version
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
