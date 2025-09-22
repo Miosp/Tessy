@@ -18,7 +18,7 @@ compio = { version = "0.16.0", features = [
 ] }
 futures = "0.3.31"
 futures-channel = "0.3.31"
-clap = { version = "4.5.47", features = ["derive"] }
+clap = { version = "4.5.48", features = ["derive"] }
 bincode = "2.0.1"
 zstd = "0.13.3"
 metrohash = "1.0.7"
